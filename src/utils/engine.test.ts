@@ -10,6 +10,8 @@ import {
   calculateMetrics,
   getContactScannerScript,
   getFormAutoFillScript,
+  getStoreContactRoutes,
+  generateAutoFillBookmarklet,
   StoreItem
 } from './engine.ts';
 
@@ -104,3 +106,25 @@ test('getContactScannerScript and getFormAutoFillScript generate valid JS wrappe
   assert.ok(autoFill.includes('new Event(\'input\''));
   assert.ok(autoFill.includes('scrollIntoView'));
 });
+
+test('getStoreContactRoutes generates standard Shopify, contact-us, and Google site search links', () => {
+  const routes = getStoreContactRoutes('https://gymshark.com/collections/all');
+  assert.equal(routes.shopifyPagesContact, 'https://gymshark.com/pages/contact');
+  assert.equal(routes.contactUs, 'https://gymshark.com/contact-us');
+  assert.equal(routes.contact, 'https://gymshark.com/contact');
+  assert.equal(routes.googleSearch, 'https://www.google.com/search?q=site:gymshark.com+contact');
+});
+
+test('generateAutoFillBookmarklet produces a valid executable javascript: uri', () => {
+  const bookmarklet = generateAutoFillBookmarklet({
+    fullName: 'Sarah Connor',
+    email: 'sarah@skynet.com',
+    phone: '555-1234',
+    subject: 'Question for {store_name}',
+    messageTemplate: 'Hello {store_name} on {domain}'
+  });
+  assert.ok(bookmarklet.startsWith('javascript:'));
+  assert.ok(bookmarklet.includes('Sarah Connor'));
+  assert.ok(bookmarklet.includes('new Event'));
+});
+

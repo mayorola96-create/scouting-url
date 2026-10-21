@@ -168,6 +168,61 @@ export const QueueScreen: React.FC<QueueScreenProps> = ({
         </div>
       </div>
 
+      {/* Direct Bulk Paste and File Dropzone */}
+      <div className="p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 space-y-3 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Plus className="w-4 h-4 text-indigo-400" />
+            <h3 className="font-bold text-xs uppercase tracking-wider text-zinc-300">
+              Bulk Store Importer (Paste or Drop URLs)
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setPasteText(
+                'nordicwear-studio.com\naurora-organics.shop\nveldt-coffee-roasters.com\nlumin-home-decor.com\napex-fitness-gear.myshopify.com\ngymshark.com\nallbirds.com'
+              )
+            }
+            className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors"
+          >
+            <Sparkles className="w-3 h-3 text-indigo-400" />
+            <span>Fill Sample Store List</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+          <div className="md:col-span-9">
+            <textarea
+              rows={4}
+              placeholder="Paste store URLs or domains (one per line, e.g. allbirds.com, https://gymshark.com)..."
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              className="w-full p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono leading-relaxed"
+            />
+          </div>
+
+          <div className="md:col-span-3 flex flex-col gap-2 justify-between">
+            <button
+              onClick={handleAddUrls}
+              disabled={!pasteText.trim()}
+              className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Import to Queue</span>
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs border border-zinc-700/80 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Upload className="w-4 h-4 text-zinc-400" />
+              <span>Upload CSV / TXT</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Real-Time Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800/90 shadow-sm">

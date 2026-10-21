@@ -19,26 +19,32 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({
   const [copiedPreview, setCopiedPreview] = useState(false);
 
   const handleChange = (field: keyof SenderProfile, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const updated = { ...formData, [field]: value };
+    setFormData(updated);
+    onSaveProfile(updated);
   };
 
   const handleInsertToken = (token: string) => {
-    setFormData(prev => ({
-      ...prev,
-      messageTemplate: prev.messageTemplate + token,
-    }));
+    const updated = {
+      ...formData,
+      messageTemplate: formData.messageTemplate + token,
+    };
+    setFormData(updated);
+    onSaveProfile(updated);
   };
 
   const handleApplyPreset = (preset: typeof TEMPLATE_PRESETS[0]) => {
-    setFormData(prev => ({
-      ...prev,
+    const updated = {
+      ...formData,
       subject: preset.subject,
       messageTemplate: preset.message,
-    }));
+    };
+    setFormData(updated);
+    onSaveProfile(updated);
   };
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = (e?: React.FormEvent) => {
+    e?.preventDefault();
     onSaveProfile(formData);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);

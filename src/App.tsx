@@ -4,32 +4,32 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { SenderProfile, StoreItem, calculateMetrics } from './utils/engine';
+import { SenderProfile, StoreItem, calculateMetrics, generateAutoFillBookmarklet } from './utils/engine';
 import { INITIAL_STORES, TEMPLATE_PRESETS } from './data/mockStores';
-import { PhoneSimulator } from './components/PhoneSimulator';
+import { OutreachCockpit } from './components/OutreachCockpit';
 import { SetupScreen } from './components/SetupScreen';
 import { QueueScreen } from './components/QueueScreen';
-import { AndroidCodeViewer } from './components/AndroidCodeViewer';
-import { downloadAndroidProjectZip } from './utils/zipExporter';
 import {
-  Smartphone,
+  Zap,
   Sliders,
   Layers,
-  Download,
-  Github,
-  CheckCircle2,
   Sparkles,
+  Bookmark,
+  CheckCircle2,
   ExternalLink,
-  Bot,
-  Zap,
+  Flame,
+  Globe,
+  Share2,
 } from 'lucide-react';
 
-const LOCAL_STORAGE_KEY_STORES = 'storereach_stores_v1';
-const LOCAL_STORAGE_KEY_PROFILE = 'storereach_profile_v1';
-const LOCAL_STORAGE_KEY_INDEX = 'storereach_index_v1';
+const LOCAL_STORAGE_KEY_STORES = 'storescout_stores_v2';
+const LOCAL_STORAGE_KEY_PROFILE = 'storescout_profile_v2';
+const LOCAL_STORAGE_KEY_INDEX = 'storescout_index_v2';
+const LOCAL_STORAGE_KEY_DAILY = 'storescout_daily_v2';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'browser' | 'setup' | 'queue' | 'android'>('browser');
+  const [activeTab, setActiveTab] = useState<'cockpit' | 'queue' | 'setup'>('cockpit');
+
   const [stores, setStores] = useState<StoreItem[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_STORES);
@@ -64,10 +64,16 @@ export default function App() {
     };
   });
 
-  const [isFullscreenPhone, setIsFullscreenPhone] = useState(false);
-  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
+  const [dailyCount, setDailyCount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_DAILY);
+      return saved ? parseInt(saved, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
 
-  // Sync to local storage
+  // Sync state to local storage
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY_STORES, JSON.stringify(stores));
   }, [stores]);
@@ -79,6 +85,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY_PROFILE, JSON.stringify(profile));
   }, [profile]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY_DAILY, dailyCount.toString());
+  }, [dailyCount]);
 
   const metrics = calculateMetrics(stores);
   const currentStore = stores[currentIndex];
@@ -93,36 +103,32 @@ export default function App() {
     setStores(prev =>
       prev.map(s => (s.id === id ? { ...s, status, contactedAt: timestamp } : s))
     );
+    if (status === 'completed') {
+      setDailyCount(prev => prev + 1);
+    }
   };
 
   const handleSelectStore = (index: number) => {
     setCurrentIndex(index);
-    setActiveTab('browser');
+    setActiveTab('cockpit');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleStartCampaign = () => {
-    // Find first pending
     const firstPending = stores.findIndex(s => s.status === 'pending');
     if (firstPending !== -1) {
       setCurrentIndex(firstPending);
     }
-    setActiveTab('browser');
+    setActiveTab('cockpit');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  const handleQuickDownloadZip = async () => {
-    try {
-      setIsDownloadingZip(true);
-      await downloadAndroidProjectZip();
-      setTimeout(() => setIsDownloadingZip(false), 1200);
-    } catch (e) {
-      setIsDownloadingZip(false);
-    }
-  };
-
-  const handleTabChange = (tab: 'browser' | 'setup' | 'queue' | 'android') => {
+  const handleTabChange = (tab: 'cockpit' | 'queue' | 'setup') => {
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
+
+  const bookmarkletCode = generateAutoFillBookmarklet(profile);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
@@ -131,58 +137,48 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           {/* Logo & Brand */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 text-white font-black text-sm">
-              <Zap className="w-4 h-4 fill-white text-white" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-amber-500/20 text-black font-black text-sm">
+              <Zap className="w-4 h-4 fill-black text-black" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">StoreReach</span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                  ANDROID
+                <span className="font-extrabold text-base tracking-tight text-white">StoreScout Web</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  LIVE OUTREACH
                 </span>
               </div>
               <p className="text-[10px] text-zinc-400 hidden md:block">
-                Semi-automated e-commerce contact form outreach browser
+                Semi-automated browser store outreach &amp; form auto-filler
               </p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Main 3 Navigation Tabs */}
           <nav className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-800 p-1 rounded-2xl shadow-inner max-w-full overflow-x-auto">
+            {/* View 3: Rapid Outreach Cockpit */}
             <button
-              onClick={() => handleTabChange('browser')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-                activeTab === 'browser'
-                  ? 'bg-indigo-600 text-white shadow-md'
+              onClick={() => handleTabChange('cockpit')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'cockpit'
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
                   : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
               }`}
             >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Browser HUD</span>
+              <Zap className="w-3.5 h-3.5" />
+              <span>Outreach Cockpit</span>
             </button>
 
-            <button
-              onClick={() => handleTabChange('setup')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-                activeTab === 'setup'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>Setup</span>
-            </button>
-
+            {/* View 2: Bulk URL Queue & Importer */}
             <button
               onClick={() => handleTabChange('queue')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'queue'
-                  ? 'bg-indigo-600 text-white shadow-md'
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
                   : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Queue</span>
+              <span>URL Queue</span>
               {metrics.pending > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50 ml-0.5">
                   {metrics.pending}
@@ -190,29 +186,32 @@ export default function App() {
               )}
             </button>
 
+            {/* View 1: Sender & Pitch Setup */}
             <button
-              onClick={() => handleTabChange('android')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-                activeTab === 'android'
-                  ? 'bg-indigo-600 text-white shadow-md'
+              onClick={() => handleTabChange('setup')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'setup'
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
                   : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
               }`}
             >
-              <Download className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-emerald-300 font-bold">Get APK</span>
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Sender &amp; Pitch</span>
             </button>
           </nav>
 
-          {/* Quick Download Button */}
+          {/* Quick Copy Bookmarklet Button */}
           <div className="hidden lg:flex items-center gap-2">
             <button
-              onClick={handleQuickDownloadZip}
-              disabled={isDownloadingZip}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-950/50 transition-all active:scale-95 cursor-pointer"
-              title="Download Android Studio Project (.zip) with GitHub Actions workflow"
+              onClick={() => {
+                navigator.clipboard.writeText(bookmarkletCode);
+                alert('⚡ StoreScout: Auto-Fill Bookmarklet code copied to clipboard! You can paste it into a bookmark or use the draggable button inside the Cockpit.');
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all cursor-pointer"
+              title="Copy Auto-Fill Bookmarklet code"
             >
-              <Download className={`w-3.5 h-3.5 ${isDownloadingZip ? 'animate-bounce' : ''}`} />
-              <span>{isDownloadingZip ? 'Packaging ZIP...' : 'Download APK Source (.zip)'}</span>
+              <Bookmark className="w-3.5 h-3.5 text-amber-400" />
+              <span>⚡ Bookmarklet</span>
             </button>
           </div>
         </div>
@@ -220,51 +219,21 @@ export default function App() {
 
       {/* Main Tab Views */}
       <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full">
-        {activeTab === 'browser' && (
-          <div className="space-y-4">
-            {/* Quick summary banner above phone */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800 max-w-3xl mx-auto text-xs text-zinc-300">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>
-                  Current Store: <strong className="text-white">{currentStore?.storeName || 'None'}</strong>{' '}
-                  <span className="text-zinc-500 font-mono">({currentStore?.domain})</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-zinc-400">
-                  Outreached Today: <strong className="text-emerald-400">{metrics.completed}</strong>
-                </span>
-                <span className="text-zinc-600">&bull;</span>
-                <span className="text-zinc-400">
-                  Pending: <strong className="text-amber-400">{metrics.pending}</strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Mobile Browser Simulation */}
-            <PhoneSimulator
-              stores={stores}
-              currentIndex={currentIndex}
-              profile={profile}
-              onSelectIndex={setCurrentIndex}
-              onMarkStore={handleMarkStore}
-              onOpenSetup={() => setActiveTab('setup')}
-              onOpenQueue={() => setActiveTab('queue')}
-              isFullscreen={isFullscreenPhone}
-              onToggleFullscreen={() => setIsFullscreenPhone(!isFullscreenPhone)}
-            />
-          </div>
-        )}
-
-        {activeTab === 'setup' && (
-          <SetupScreen
+        {/* VIEW 3: RAPID OUTREACH COCKPIT */}
+        {activeTab === 'cockpit' && (
+          <OutreachCockpit
+            stores={stores}
+            currentIndex={currentIndex}
             profile={profile}
-            onSaveProfile={setProfile}
-            currentStore={currentStore}
+            dailyCount={dailyCount}
+            onSelectIndex={setCurrentIndex}
+            onMarkStore={handleMarkStore}
+            onOpenSetup={() => handleTabChange('setup')}
+            onOpenQueue={() => handleTabChange('queue')}
           />
         )}
 
+        {/* VIEW 2: BULK URL QUEUE & IMPORTER */}
         {activeTab === 'queue' && (
           <QueueScreen
             stores={stores}
@@ -275,19 +244,26 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'android' && <AndroidCodeViewer />}
+        {/* VIEW 1: SENDER & PITCH SETUP */}
+        {activeTab === 'setup' && (
+          <SetupScreen
+            profile={profile}
+            onSaveProfile={setProfile}
+            currentStore={currentStore}
+          />
+        )}
       </main>
 
       {/* Footer */}
       <footer className="border-t border-zinc-800/80 bg-zinc-950 py-4 px-6 text-center text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div>StoreReach &bull; Semi-Automated Store Outreach Browser &bull; Target Android SDK 34</div>
-          <div className="flex items-center gap-4 text-zinc-400 text-[11px]">
-            <span>Dynamic JS Event Dispatching</span>
+          <div>StoreScout Web &bull; Rapid E-Commerce Outreach Cockpit &bull; GitHub Pages Ready</div>
+          <div className="flex items-center gap-3 text-zinc-400 text-[11px]">
+            <span>Auto-Copies Pitch on Launch</span>
             <span>&bull;</span>
-            <span>SharedPreferences Local Persistence</span>
+            <span>1-Click Bookmarklet Form Filler</span>
             <span>&bull;</span>
-            <span>GitHub Actions Cloud CI/CD</span>
+            <span>LocalStorage Persistence</span>
           </div>
         </div>
       </footer>

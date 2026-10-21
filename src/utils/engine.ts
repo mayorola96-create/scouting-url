@@ -409,3 +409,49 @@ export function getFormAutoFillScript(profile: {
   }
 })();`;
 }
+
+export interface StoreContactRoutes {
+  shopifyPagesContact: string;
+  contactUs: string;
+  contact: string;
+  googleSearch: string;
+}
+
+/**
+ * Returns the exact direct contact routes and fallback search URL for any store domain
+ */
+export function getStoreContactRoutes(domain: string): StoreContactRoutes {
+  const cleanDom = domain
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/.*$/, '')
+    .replace(/^www\./i, '')
+    .trim();
+
+  return {
+    shopifyPagesContact: `https://${cleanDom}/pages/contact`,
+    contactUs: `https://${cleanDom}/contact-us`,
+    contact: `https://${cleanDom}/contact`,
+    googleSearch: `https://www.google.com/search?q=site:${cleanDom}+contact`,
+  };
+}
+
+/**
+ * Generates an ultra-reliable JavaScript Bookmarklet packed with the user's
+ * configured contact details and template interpolation engine.
+ * Clicking this bookmarklet while viewing ANY store's contact page automatically
+ * finds and fills inputs and dispatches reactive events.
+ */
+export function generateAutoFillBookmarklet(profile: SenderProfile): string {
+  const safeProfile = {
+    fullName: profile.fullName || '',
+    email: profile.email || '',
+    phone: profile.phone || '',
+    subject: profile.subject || '',
+    template: profile.messageTemplate || '',
+  };
+
+  const payload = JSON.stringify(safeProfile);
+
+  return `javascript:(function(){try{var d=document,w=window;var dom=w.location.hostname.replace(/^www\\./,'');var b=dom.replace(/\\.myshopify\\.com$/i,'').replace(/\\.[a-z]{2,8}$/i,'');var sn=b.replace(/[-_.]/g,' ').replace(/\\b\\w/g,function(l){return l.toUpperCase();})||'Store';var p=${payload};var subj=p.subject.replace(/{store_name}/gi,sn).replace(/{domain}/gi,dom);var msg=p.template.replace(/{store_name}/gi,sn).replace(/{domain}/gi,dom).replace(/{full_name}/gi,p.fullName).replace(/{email}/gi,p.email).replace(/{phone}/gi,p.phone);function f(el,v){if(!el||!v)return;el.focus();el.value=v;el.setAttribute('value',v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));el.blur();}function has(s,a){if(!s)return false;s=s.toLowerCase();return a.some(function(k){return s.indexOf(k)!==-1;});}var ins=Array.from(d.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]),textarea'));var n=0;var ne=ins.find(function(e){var t=(e.type||'').toLowerCase();if(t==='email'||t==='tel'||t==='password')return false;return has(e.name,['name','full_name','your-name'])||has(e.id,['name'])||has(e.placeholder,['name']);});if(ne&&p.fullName){f(ne,p.fullName);n++;}var ee=ins.find(function(e){return(e.type||'').toLowerCase()==='email'||has(e.name,['email'])||has(e.id,['email'])||has(e.placeholder,['email']);});if(ee&&p.email){f(ee,p.email);n++;}var pe=ins.find(function(e){return(e.type||'').toLowerCase()==='tel'||has(e.name,['phone','tel'])||has(e.id,['phone'])||has(e.placeholder,['phone']);});if(pe&&p.phone){f(pe,p.phone);n++;}var se=ins.find(function(e){var t=(e.type||'').toLowerCase();if(t==='email'||t==='tel')return false;return has(e.name,['subject','topic'])||has(e.id,['subject'])||has(e.placeholder,['subject']);});if(se&&subj){f(se,subj);n++;}var me=ins.find(function(e){return e.tagName.toLowerCase()==='textarea'||has(e.name,['body','message','comment'])||has(e.id,['message'])||has(e.placeholder,['message']);});if(me&&msg){f(me,msg);n++;}var btn=d.querySelector('button[type="submit"],input[type="submit"],.contact-form button,form button');if(btn){btn.scrollIntoView({behavior:'smooth',block:'center'});btn.style.outline='4px solid #6366f1';btn.style.boxShadow='0 0 25px rgba(99,102,241,0.6)';}var box=d.createElement('div');box.innerHTML='&#9889; <b>StoreScout:</b> Auto-filled '+n+' fields for '+sn+'!';box.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#09090b;color:#a5b4fc;border:2px solid #6366f1;padding:12px 24px;border-radius:14px;font-family:sans-serif;font-size:14px;z-index:9999999;box-shadow:0 12px 30px rgba(0,0,0,0.8);';d.body.appendChild(box);setTimeout(function(){if(box.parentNode)box.parentNode.removeChild(box);},3500);}catch(err){alert('StoreScout Error: '+err.message);}})();`;
+}
+
