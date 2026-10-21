@@ -1,0 +1,9 @@
+{
+  "appId": "com.storescout.app",
+  "appName": "StoreScout",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  }
+}

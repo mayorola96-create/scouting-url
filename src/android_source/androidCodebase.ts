@@ -18,13 +18,19 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
-    name: Build & Release Debug APK
+  build-android-apk:
+    name: Compile StoreScout Android APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Source Code
+      - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
 
       - name: Set up Java JDK 17
         uses: actions/setup-java@v4
@@ -33,34 +39,56 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@v3
+      - name: Install Project Dependencies
+        run: npm install
 
-      - name: Grant Execute Permission to Gradlew
-        run: chmod +x gradlew
+      - name: Build Web Application
+        run: npm run build
 
-      - name: Build Debug APK with Gradle
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Install Capacitor CLI & Core
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Verify APK Generated
+      - name: Initialize Capacitor Project
         run: |
-          ls -la app/build/outputs/apk/debug/
-          test -f app/build/outputs/apk/debug/app-debug.apk
+          if [ ! -f "capacitor.config.json" ] && [ ! -f "capacitor.config.ts" ]; then
+            npx cap init StoreScout com.storescout.app --web-dir dist
+          fi
 
-      - name: Upload APK as Artifact
+      - name: Add Android Platform
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          else
+            npx cap sync android
+          fi
+
+      - name: Configure AndroidManifest.xml and MainActivity.java
+        run: |
+          node scripts/configure-android.js
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: |
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+          fi
+
+      - name: Build Android Debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK Output
+        run: |
+          ls -la android/app/build/outputs/apk/debug/
+          test -f android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload StoreScout APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StoreReach-App-Debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: StoreScout-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
           retention-days: 14
-
-      - name: Create GitHub Release (Optional)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: app/build/outputs/apk/debug/app-debug.apk
-        env:
-          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
 `;
 
 export const MAIN_ACTIVITY_KT = `package com.outreach.storebrowser
@@ -1377,6 +1405,115 @@ export function getAndroidProjectFiles(): AndroidFile[] {
       content: GITHUB_ACTIONS_WORKFLOW,
       description: 'GitHub Actions workflow to compile app-debug.apk automatically in the cloud',
       language: 'yaml',
+    },
+    {
+      path: 'capacitor.config.json',
+      content: JSON.stringify(
+        {
+          appId: 'com.storescout.app',
+          appName: 'StoreScout',
+          webDir: 'dist',
+          server: {
+            androidScheme: 'https',
+            cleartext: true,
+          },
+        },
+        null,
+        2
+      ),
+      description: 'Capacitor mobile runtime config for StoreScout',
+      language: 'properties',
+    },
+    {
+      path: 'scripts/configure-android.js',
+      content: `const fs = require('fs');
+const path = require('path');
+
+console.log('--- Configuring Android project for StoreScout ---');
+
+const manifestPath = path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
+if (fs.existsSync(manifestPath)) {
+  let manifest = fs.readFileSync(manifestPath, 'utf8');
+  if (!manifest.includes('android.permission.INTERNET')) {
+    manifest = manifest.replace(
+      '<application',
+      '    <uses-permission android:name="android.permission.INTERNET" />\\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\\n    <application'
+    );
+  }
+  if (!manifest.includes('android:usesCleartextTraffic')) {
+    manifest = manifest.replace(
+      '<application',
+      '<application\\n        android:usesCleartextTraffic="true"'
+    );
+  }
+  fs.writeFileSync(manifestPath, manifest, 'utf8');
+  console.log('✓ AndroidManifest.xml configured');
+}
+
+const mainActivityDir = path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'java', 'com', 'storescout', 'app');
+fs.mkdirSync(mainActivityDir, { recursive: true });
+const mainActivityPath = path.join(mainActivityDir, 'MainActivity.java');
+
+const mainActivityContent = \`package com.storescout.app;
+
+import android.os.Bundle;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        WebView webView = this.bridge.getWebView();
+        if (webView != null) {
+            WebSettings settings = webView.getSettings();
+            settings.setJavaScriptEnabled(true);
+            settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
+
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    String url = request.getUrl().toString();
+                    if (url.startsWith("mailto:") || url.startsWith("tel:")) return true;
+                    return false;
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    String jsEngine =
+                        "(function() {" +
+                        "  try {" +
+                        "    const currentUrl = window.location.href.toLowerCase();" +
+                        "    if (!currentUrl.includes('/contact') && !currentUrl.includes('/support')) {" +
+                        "      const keywords = ['contact', 'contact us', 'get in touch', 'support'];" +
+                        "      for (const a of Array.from(document.querySelectorAll('a[href]'))) {" +
+                        "        const text = (a.textContent || '').trim().toLowerCase();" +
+                        "        if (keywords.some(k => text.includes(k)) && !a.href.startsWith('mailto:')) {" +
+                        "          window.location.href = a.href; return;" +
+                        "        }" +
+                        "      }" +
+                        "    }" +
+                        "  } catch (e) {}" +
+                        "})();";
+                    view.evaluateJavascript(jsEngine, null);
+                }
+            });
+        }
+    }
+}
+\`;
+
+fs.writeFileSync(mainActivityPath, mainActivityContent, 'utf8');
+console.log('✓ MainActivity.java configured');
+`,
+      description: 'Node script to configure AndroidManifest.xml and MainActivity.java in CI',
+      language: 'markdown',
     },
     {
       path: 'app/src/main/java/com/outreach/storebrowser/MainActivity.kt',
