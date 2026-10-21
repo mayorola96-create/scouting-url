@@ -1,0 +1,6 @@
+{
+  "name": "StoreReach - Store Outreach Browser & Android APK Generator",
+  "description": "High-speed semi-automated store outreach browser with built-in WebView contact form auto-fill, link scanner, URL queue management, and ready-to-build Android APK source package.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
